@@ -5,13 +5,24 @@ const authMiddleware = require('../middleware/auth');
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { type, limit = 100, offset = 0 } = req.query;
+        const { type, limit = 100, offset = 0, include_deleted } = req.query;
         let query = 'SELECT * FROM activity_history';
         let params = [];
+        let conditions = [];
+        
+        if (include_deleted !== 'true') {
+            conditions.push('is_deleted = FALSE');
+        }
+        
         if (type && type !== 'all') {
-            query += ' WHERE type = ?';
+            conditions.push('type = ?');
             params.push(type);
         }
+        
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+        
         query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
         params.push(parseInt(limit), parseInt(offset));
         const [history] = await db.query(query, params);
@@ -74,10 +85,10 @@ router.post('/', authMiddleware, async (req, res) => {
 
 router.delete('/', authMiddleware, async (req, res) => {
     try {
-        await db.query('DELETE FROM activity_history');
+        await db.query('UPDATE activity_history SET is_deleted = TRUE WHERE is_deleted = FALSE');
         res.json({
             success: true,
-            message: 'Đã xóa toàn bộ lịch sử'
+            message: 'Đã xóa toàn bộ lịch sử hiển thị (dữ liệu thống kê được giữ lại)'
         });
     } catch (error) {
         console.error('Clear history error:', error);
@@ -91,7 +102,7 @@ router.delete('/', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        await db.query('DELETE FROM activity_history WHERE id = ?', [id]);
+        await db.query('UPDATE activity_history SET is_deleted = TRUE WHERE id = ?', [id]);
         res.json({
             success: true,
             message: 'Đã xóa mục lịch sử'

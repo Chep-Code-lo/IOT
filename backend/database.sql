@@ -21,9 +21,11 @@ CREATE TABLE IF NOT EXISTS activity_history (
     user_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     metadata JSON,
+    is_deleted BOOLEAN DEFAULT FALSE,
     INDEX idx_type (type),
     INDEX idx_created_at (created_at),
     INDEX idx_user_id (user_id),
+    INDEX idx_is_deleted (is_deleted),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -62,3 +64,19 @@ INSERT INTO rfid_cards (uid, owner_name, description, status) VALUES
 ('A1B2C3D4', 'Admin Card', 'Thẻ quản trị viên', 'active'),
 ('E5F6G7H8', 'User Card 1', 'Thẻ người dùng 1', 'active')
 ON DUPLICATE KEY UPDATE uid=uid;
+
+-- =====================================================
+-- MIGRATION: Fix for existing databases
+-- =====================================================
+-- Dành cho database đã tồn tại, cần chạy các lệnh sau:
+
+-- Set giá trị mặc định cho dữ liệu cũ
+UPDATE activity_history 
+SET is_deleted = FALSE 
+WHERE is_deleted IS NULL;
+
+-- Kiểm tra kết quả
+SELECT COUNT(*) as total_records, 
+       SUM(CASE WHEN is_deleted = FALSE THEN 1 ELSE 0 END) as visible_records,
+       SUM(CASE WHEN is_deleted = TRUE THEN 1 ELSE 0 END) as deleted_records
+FROM activity_history;

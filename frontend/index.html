@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 
@@ -18,7 +19,7 @@
   <div id="loginPage" class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <div class="login-icon"><i class="fas fa-door-open"></i></div>
+        <div class="login-icon"><img src="assets/images/logo-door.png" alt="Smart Door Logo"></div>
         <h1>Smart Door Control</h1>
         <p>Đăng nhập để điều khiển cửa thông minh</p>
       </div>
@@ -42,7 +43,6 @@
 
         <button type="submit" class="btn btn-primary">
           <span>Đăng nhập</span>
-          <span>→</span>
         </button>
       </form>
     </div>
@@ -51,10 +51,10 @@
   <div id="dashboard" class="dashboard">
     <header class="header">
       <div class="header-left">
-        <div class="logo"><i class="fas fa-door-open"></i></div>
+        <div class="logo"><img src="assets/images/logo-hcmute.png" alt="HCMUTE Logo"></div>
         <div class="header-title">
-          <h1>IoT Smart Door</h1>
-          <p>ESP32 RFID Control System</p>
+          <h1>IOT Smart Door</h1>
+          <p>System with RFID Authentication</p>
         </div>
       </div>
 
@@ -65,7 +65,7 @@
         </div>
 
         <div class="user-menu">
-          <div id="userAvatar" class="user-avatar">A</div>
+          <img id="userAvatar" class="user-avatar" src="assets/images/avatar.png" alt="Admin Avatar">
           <div>
             <div id="userName" style="font-weight: 600;">Admin</div>
             <div style="font-size: 12px; color: var(--text-secondary);">Online</div>
@@ -142,6 +142,12 @@
               <h3>Còi báo</h3>
               <p>Phát âm thanh 300ms</p>
             </div>
+
+            <div id="btnStats" class="control-btn stats">
+              <div class="control-btn-icon"><i class="fas fa-chart-bar"></i></div>
+              <h3>Thống kê</h3>
+              <p>Xem biểu đồ phân tích</p>
+            </div>
           </div>
         </div>
       </div>
@@ -189,6 +195,86 @@
       </div>
     </div>
   </div>
+
+  <div id="statsModal" class="stats-modal">
+    <div class="stats-modal-overlay"></div>
+    <div class="stats-modal-container">
+      <div class="stats-modal-header">
+        <h2><i class="fas fa-chart-line"></i> Thống kê hoạt động</h2>
+        <button id="statsModalClose" class="stats-modal-close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="stats-modal-body">
+        <div class="stats-filters">
+          <label for="timeRangeSelector">Thời gian:</label>
+          <select id="timeRangeSelector" class="stats-select">
+            <option value="today">Hôm nay</option>
+            <option value="week" selected>7 ngày qua</option>
+            <option value="month">30 ngày qua</option>
+            <option value="custom">Tùy chọn</option>
+          </select>
+
+          <div id="customDateRange" class="custom-date-range" style="display: none;">
+            <input type="date" id="customStartDate" class="stats-date-input">
+            <span>đến</span>
+            <input type="date" id="customEndDate" class="stats-date-input">
+          </div>
+        </div>
+
+        <div class="stats-summary">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalEvents">0</div>
+              <div class="stat-label">Tổng sự kiện</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon unlock"><i class="fas fa-lock-open"></i></div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalUnlocks">0</div>
+              <div class="stat-label">Mở khóa</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon lock"><i class="fas fa-lock"></i></div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalLocks">0</div>
+              <div class="stat-label">Khóa cửa</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon rfid"><i class="fas fa-id-card"></i></div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalRfid">0</div>
+              <div class="stat-label">Quét RFID</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-charts">
+          <div class="chart-container">
+            <h3>Hoạt động theo thời gian</h3>
+            <canvas id="activityChart"></canvas>
+          </div>
+
+          <div class="stats-row">
+            <div class="chart-container chart-half">
+              <h3>Phân phối sự kiện</h3>
+              <canvas id="distributionChart"></canvas>
+            </div>
+            <div class="chart-container chart-half">
+              <h3>Hoạt động theo giờ</h3>
+              <canvas id="hourlyChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="assets/js/app.js"></script>
 </body>

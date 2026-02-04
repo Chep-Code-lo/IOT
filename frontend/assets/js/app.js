@@ -1,17 +1,12 @@
 const CONFIG = {
     api: {
-        baseUrl: '/api'
-
+        baseUrl: 'http://localhost:3000/api'
     },
     mqtt: {
-        url: 'wss://iot.x10.network/mqtt',
-        username: 'esp32user',
-        password: 'esp32pass123',
-        deviceId: 'esp32_01'
-    },
-    auth: {
-        defaultUsername: 'admin',
-        defaultPassword: 'admin123'
+        url: 'ws://54.175.241.93:9001',
+        username: 'iot',
+        password: 'iot',
+        deviceId: 'iot_01'
     },
     storage: {
         tokenKey: 'iot_token',
@@ -77,6 +72,7 @@ const TOPICS = {
 let mqttClient = null;
 let currentUser = null;
 let doorStatus = 'LOCKED';
+let deviceOnlineStatus = false;
 
 const DOM = {
     loginPage: document.getElementById('loginPage'),
@@ -103,11 +99,20 @@ const DOM = {
     btnLock: document.getElementById('btnLock'),
     btnPing: document.getElementById('btnPing'),
     btnBuzz: document.getElementById('btnBuzz'),
+    btnStats: document.getElementById('btnStats'),
 
     logStream: document.getElementById('logStream'),
     historyList: document.getElementById('historyList'),
     historyTabs: document.querySelectorAll('.history-tab'),
     btnClearHistory: document.getElementById('btnClearHistory'),
+
+    statsModal: document.getElementById('statsModal'),
+    statsModalClose: document.getElementById('statsModalClose'),
+    statsModalOverlay: null,
+    timeRangeSelector: document.getElementById('timeRangeSelector'),
+    customDateRange: document.getElementById('customDateRange'),
+    customStartDate: document.getElementById('customStartDate'),
+    customEndDate: document.getElementById('customEndDate'),
 
     toastContainer: document.getElementById('toastContainer')
 };
@@ -259,6 +264,10 @@ const MQTT = {
                     this.updateDoorStatus(data.doorStatus);
                 }
 
+                if (data.status) {
+                    this.updateDeviceStatus(data.status);
+                }
+
                 if (data.type === 'RFID_SCAN' || data.uid) {
                     if (data.uid && data.status) {
                         const isValid = data.status === 'VALID';
@@ -320,6 +329,12 @@ const MQTT = {
         }
     },
 
+    updateDeviceStatus(status) {
+        const isOnline = status === 'ONLINE';
+        deviceOnlineStatus = isOnline;
+        DOM.deviceStatus.textContent = isOnline ? 'Online' : 'Offline';
+    },
+
     sendCommand(cmd, extra = {}) {
         if (!mqttClient || !mqttClient.connected) {
             Toast.show('error', 'Lỗi', 'Chưa kết nối đến MQTT Broker');
@@ -342,6 +357,11 @@ const MQTT = {
 
 const Control = {
     unlock(durationMs = 2000) {
+        if (!deviceOnlineStatus) {
+            Toast.show('warning', 'Thiết bị offline', 'Không thể gửi lệnh khi thiết bị ngoại tuyến');
+            return;
+        }
+
         const btn = DOM.btnUnlock;
         btn.classList.add('sending');
 
@@ -360,6 +380,11 @@ const Control = {
     },
 
     lock() {
+        if (!deviceOnlineStatus) {
+            Toast.show('warning', 'Thiết bị offline', 'Không thể gửi lệnh khi thiết bị ngoại tuyến');
+            return;
+        }
+
         const btn = DOM.btnLock;
         btn.classList.add('sending');
 
@@ -378,6 +403,11 @@ const Control = {
     },
 
     ping() {
+        if (!deviceOnlineStatus) {
+            Toast.show('warning', 'Thiết bị offline', 'Không thể ping khi thiết bị ngoại tuyến');
+            return;
+        }
+
         const btn = DOM.btnPing;
         btn.classList.add('sending');
 
@@ -389,6 +419,11 @@ const Control = {
     },
 
     buzz(durationMs = 300) {
+        if (!deviceOnlineStatus) {
+            Toast.show('warning', 'Thiết bị offline', 'Không thể kích hoạt còi khi thiết bị ngoại tuyến');
+            return;
+        }
+
         const btn = DOM.btnBuzz;
         btn.classList.add('sending');
 
@@ -750,6 +785,362 @@ const Toast = {
     }
 };
 
+const Statistics = {
+    charts: {
+        activity: null,
+        distribution: null,
+        hourly: null
+    },
+    data: [],
+    currentTimeRange: 'week',
+    customStartDate: null,
+    customEndDate: null,
+
+    async open() {
+        const modal = document.getElementById('statsModal');
+        modal.classList.add('active');
+
+        await this.loadData();
+
+        if (!this.charts.activity) {
+            this.init();
+        } else {
+            this.updateCharts();
+        }
+    },
+
+    close() {
+        const modal = document.getElementById('statsModal');
+        modal.classList.remove('active');
+    },
+
+    async loadData() {
+        try {
+            // Load with include_deleted=true to get ALL data for statistics
+            const response = await API.get('/history?limit=10000&include_deleted=true');
+            if (response.success) {
+                this.data = response.data;
+            } else {
+                this.data = [];
+            }
+        } catch (error) {
+            console.error('Load statistics data error:', error);
+            this.data = [];
+        }
+    },
+
+    init() {
+        const historyData = this.filterDataByTimeRange(this.data, this.currentTimeRange);
+
+        this.charts.activity = this.createActivityChart(historyData);
+        this.charts.distribution = this.createDistributionChart(historyData);
+        this.charts.hourly = this.createHourlyChart(historyData);
+
+        this.updateSummaryCards(historyData);
+    },
+
+    updateCharts() {
+        const historyData = this.filterDataByTimeRange(this.data, this.currentTimeRange);
+
+        if (this.charts.activity) {
+            const activityData = this.getTimelineData(historyData);
+            this.charts.activity.data.labels = activityData.labels;
+            this.charts.activity.data.datasets[0].data = activityData.data;
+            this.charts.activity.update();
+        }
+
+        if (this.charts.distribution) {
+            const distData = this.getEventDistributionData(historyData);
+            this.charts.distribution.data.labels = distData.labels;
+            this.charts.distribution.data.datasets[0].data = distData.data;
+            this.charts.distribution.update();
+        }
+
+        if (this.charts.hourly) {
+            const hourlyData = this.getHourlyActivityData(historyData);
+            this.charts.hourly.data.labels = hourlyData.labels;
+            this.charts.hourly.data.datasets[0].data = hourlyData.data;
+            this.charts.hourly.update();
+        }
+
+        this.updateSummaryCards(historyData);
+    },
+
+    filterDataByTimeRange(data, range) {
+        const now = new Date();
+        let startDate;
+
+        if (range === 'today') {
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        } else if (range === 'week') {
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (range === 'month') {
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        } else if (range === 'custom' && this.customStartDate && this.customEndDate) {
+            startDate = new Date(this.customStartDate);
+            const endDate = new Date(this.customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+            return data.filter(item => {
+                const itemDate = new Date(item.timestamp);
+                return itemDate >= startDate && itemDate <= endDate;
+            });
+        } else {
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        }
+
+        return data.filter(item => {
+            const itemDate = new Date(item.timestamp);
+            return itemDate >= startDate;
+        });
+    },
+
+    getTimelineData(filteredHistory) {
+        const dayMap = {};
+
+        filteredHistory.forEach(item => {
+            const date = new Date(item.timestamp);
+            const dayKey = `${date.getMonth() + 1}/${date.getDate()}`;
+            dayMap[dayKey] = (dayMap[dayKey] || 0) + 1;
+        });
+
+        const sortedDays = Object.keys(dayMap).sort((a, b) => {
+            const [aMonth, aDay] = a.split('/').map(Number);
+            const [bMonth, bDay] = b.split('/').map(Number);
+            return (aMonth * 100 + aDay) - (bMonth * 100 + bDay);
+        });
+
+        return {
+            labels: sortedDays,
+            data: sortedDays.map(day => dayMap[day])
+        };
+    },
+
+    getEventDistributionData(filteredHistory) {
+        const typeMap = {
+            unlock: 0,
+            lock: 0,
+            rfid: 0,
+            system: 0,
+            other: 0
+        };
+
+        filteredHistory.forEach(item => {
+            const type = item.type || 'other';
+            if (typeMap[type] !== undefined) {
+                typeMap[type]++;
+            } else {
+                typeMap.other++;
+            }
+        });
+
+        return {
+            labels: ['Mở khóa', 'Khóa', 'RFID', 'Hệ thống', 'Khác'],
+            data: [typeMap.unlock, typeMap.lock, typeMap.rfid, typeMap.system, typeMap.other]
+        };
+    },
+
+    getHourlyActivityData(filteredHistory) {
+        const hourMap = {};
+        for (let i = 0; i < 24; i++) {
+            hourMap[i] = 0;
+        }
+
+        filteredHistory.forEach(item => {
+            const date = new Date(item.timestamp);
+            const hour = date.getHours();
+            hourMap[hour]++;
+        });
+
+        return {
+            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+            data: Array.from({ length: 24 }, (_, i) => hourMap[i])
+        };
+    },
+
+    createActivityChart(data) {
+        const timelineData = this.getTimelineData(data);
+        const ctx = document.getElementById('activityChart').getContext('2d');
+
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timelineData.labels,
+                datasets: [{
+                    label: 'Số sự kiện',
+                    data: timelineData.data,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: '#8b5cf6',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#7c3aed',
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#1a1a2e',
+                        bodyColor: '#6b7280',
+                        borderColor: '#8b5cf6',
+                        borderWidth: 2,
+                        padding: 12,
+                        displayColors: false,
+                        callbacks: {
+                            title: function (context) {
+                                return 'Ngày ' + context[0].label;
+                            },
+                            label: function (context) {
+                                return context.parsed.y + ' sự kiện';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: '#6b7280'
+                        },
+                        grid: {
+                            color: 'rgba(107, 114, 128, 0.1)',
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#6b7280'
+                        },
+                        grid: {
+                            color: 'rgba(107, 114, 128, 0.1)',
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    createDistributionChart(data) {
+        const distData = this.getEventDistributionData(data);
+        const ctx = document.getElementById('distributionChart').getContext('2d');
+
+        return new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: distData.labels,
+                datasets: [{
+                    data: distData.data,
+                    backgroundColor: [
+                        'rgba(74, 222, 128, 0.8)',
+                        'rgba(248, 113, 113, 0.8)',
+                        'rgba(96, 165, 250, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(156, 163, 175, 0.8)'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#1a1a2e',
+                        bodyColor: '#6b7280',
+                        borderColor: 'rgba(139, 92, 246, 0.5)',
+                        borderWidth: 2,
+                        padding: 12,
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return label + ': ' + value + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    createHourlyChart(data) {
+        const hourlyData = this.getHourlyActivityData(data);
+        const ctx = document.getElementById('hourlyChart').getContext('2d');
+
+        return new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: hourlyData.labels,
+                datasets: [{
+                    label: 'Số sự kiện',
+                    data: hourlyData.data,
+                    backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    updateSummaryCards(filteredHistory) {
+        const stats = {
+            total: filteredHistory.length,
+            unlock: 0,
+            lock: 0,
+            rfid: 0
+        };
+
+        filteredHistory.forEach(item => {
+            if (item.type === 'unlock') stats.unlock++;
+            else if (item.type === 'lock') stats.lock++;
+            else if (item.type === 'rfid') stats.rfid++;
+        });
+
+        document.getElementById('totalEvents').textContent = stats.total;
+        document.getElementById('totalUnlocks').textContent = stats.unlock;
+        document.getElementById('totalLocks').textContent = stats.lock;
+        document.getElementById('totalRfid').textContent = stats.rfid;
+    }
+};
+
+
 function initEventListeners() {
     DOM.loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -769,6 +1160,48 @@ function initEventListeners() {
     DOM.btnLock.addEventListener('click', () => Control.lock());
     DOM.btnPing.addEventListener('click', () => Control.ping());
     DOM.btnBuzz.addEventListener('click', () => Control.buzz());
+
+    DOM.btnStats.addEventListener('click', () => Statistics.open());
+    DOM.statsModalClose.addEventListener('click', () => Statistics.close());
+
+    DOM.statsModal.addEventListener('click', (e) => {
+        if (e.target.classList.contains('stats-modal-overlay')) {
+            Statistics.close();
+        }
+    });
+
+    DOM.timeRangeSelector.addEventListener('change', (e) => {
+        Statistics.currentTimeRange = e.target.value;
+
+        if (e.target.value === 'custom') {
+            DOM.customDateRange.style.display = 'flex';
+            const today = new Date().toISOString().split('T')[0];
+            DOM.customStartDate.value = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            DOM.customEndDate.value = today;
+            DOM.customStartDate.max = today;
+            DOM.customEndDate.max = today;
+        } else {
+            DOM.customDateRange.style.display = 'none';
+        }
+
+        Statistics.updateCharts();
+    });
+
+    DOM.customStartDate.addEventListener('change', () => {
+        Statistics.customStartDate = DOM.customStartDate.value;
+        DOM.customEndDate.min = DOM.customStartDate.value;
+        if (DOM.customEndDate.value) {
+            Statistics.updateCharts();
+        }
+    });
+
+    DOM.customEndDate.addEventListener('change', () => {
+        Statistics.customEndDate = DOM.customEndDate.value;
+        if (DOM.customStartDate.value) {
+            Statistics.updateCharts();
+        }
+    });
+
     DOM.historyTabs.forEach(tab => {
         tab.addEventListener('click', () => History.filter(tab.dataset.filter));
     });
