@@ -1,6 +1,6 @@
 const CONFIG = {
     api: {
-        baseUrl: '/api'
+        baseUrl: 'http://localhost:3000/api'
     },
     mqtt: {
         url: 'ws://54.175.241.93:9001',
