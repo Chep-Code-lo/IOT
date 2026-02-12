@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS system_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO users (username, password_hash, full_name, role) 
-VALUES ('admin', '$2b$10$7dSGi852eO481FTskyDn6u1Qk8Lq51N/wwfNhbznu3yGWQI.0Z4kq', 'Administrator', 'admin')
+VALUES ('admin', '$2b$10$TupJ3XSzzraQGzMqKi1bFeVnXLMox57AWr4h5SgCDx/aR0RrP8b4i', 'Administrator', 'admin')
 ON DUPLICATE KEY UPDATE username=username;
 
 INSERT INTO rfid_cards (uid, owner_name, description, status) VALUES

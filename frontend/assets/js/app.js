@@ -1,9 +1,9 @@
 const CONFIG = {
     api: {
-        baseUrl: 'http://localhost:3000/api'
+        baseUrl: '/api'
     },
     mqtt: {
-        url: 'ws://54.175.241.93:9001',
+        url: 'wss://hackerlo.online/mqtt',
         username: 'iot',
         password: 'iot',
         deviceId: 'iot_01'
@@ -13,7 +13,7 @@ const CONFIG = {
         sessionKey: 'iot_session'
     }
 };
-
+/* đã đổi */
 const API = {
     async request(endpoint, options = {}) {
         const token = localStorage.getItem(CONFIG.storage.tokenKey);
@@ -73,6 +73,8 @@ let mqttClient = null;
 let currentUser = null;
 let doorStatus = 'LOCKED';
 let deviceOnlineStatus = false;
+let isAuthenticated = false;
+let sessionMonitorInterval = null;
 
 const DOM = {
     loginPage: document.getElementById('loginPage'),
@@ -117,6 +119,80 @@ const DOM = {
     toastContainer: document.getElementById('toastContainer')
 };
 
+const AuthGuard = {
+    isAuthenticated() {
+        return isAuthenticated && currentUser !== null && localStorage.getItem(CONFIG.storage.tokenKey) !== null;
+    },
+
+    async validateSession() {
+        const token = localStorage.getItem(CONFIG.storage.tokenKey);
+        if (!token) {
+            this.forceLogout('No token found');
+            return false;
+        }
+
+        try {
+            const response = await API.get('/auth/verify');
+            if (response.success) {
+                return true;
+            } else {
+                this.forceLogout('Token validation failed');
+                return false;
+            }
+        } catch (error) {
+            console.error('Session validation error:', error);
+            this.forceLogout('Session expired');
+            return false;
+        }
+    },
+
+    forceLogout(reason) {
+        console.warn('Force logout:', reason);
+        isAuthenticated = false;
+        currentUser = null;
+        localStorage.removeItem(CONFIG.storage.tokenKey);
+        localStorage.removeItem(CONFIG.storage.sessionKey);
+
+        if (mqttClient && mqttClient.connected) {
+            mqttClient.end();
+        }
+
+        Auth.showLogin();
+        Toast.show('warning', 'Phiên đã hết hạn', 'Vui lòng đăng nhập lại');
+    },
+
+    requireAuth(action, actionName = 'this action') {
+        if (!this.isAuthenticated()) {
+            Toast.show('error', 'Chưa xác thực', `Bạn cần đăng nhập để ${actionName}`);
+            this.forceLogout('Unauthorized action attempt');
+            return false;
+        }
+        return true;
+    },
+
+    startSessionMonitoring() {
+        if (sessionMonitorInterval) {
+            clearInterval(sessionMonitorInterval);
+        }
+
+        sessionMonitorInterval = setInterval(async () => {
+            if (isAuthenticated) {
+                const valid = await this.validateSession();
+                if (!valid) {
+                    clearInterval(sessionMonitorInterval);
+                }
+            }
+        }, 5 * 60 * 1000);
+    },
+
+    stopSessionMonitoring() {
+        if (sessionMonitorInterval) {
+            clearInterval(sessionMonitorInterval);
+            sessionMonitorInterval = null;
+        }
+    }
+};
+
 const Auth = {
     async init() {
         const token = localStorage.getItem(CONFIG.storage.tokenKey);
@@ -125,7 +201,9 @@ const Auth = {
                 const response = await API.get('/auth/verify');
                 if (response.success) {
                     currentUser = response.data.user;
+                    isAuthenticated = true;
                     this.showDashboard();
+                    AuthGuard.startSessionMonitoring();
                     return;
                 }
             } catch (error) {
@@ -133,6 +211,7 @@ const Auth = {
                 localStorage.removeItem(CONFIG.storage.tokenKey);
             }
         }
+        isAuthenticated = false;
         this.showLogin();
     },
 
@@ -143,7 +222,9 @@ const Auth = {
             if (response.success) {
                 localStorage.setItem(CONFIG.storage.tokenKey, response.data.token);
                 currentUser = response.data.user;
+                isAuthenticated = true;
                 this.showDashboard();
+                AuthGuard.startSessionMonitoring();
                 Toast.show('success', 'Đăng nhập thành công', `Chào mừng ${username}!`);
                 return true;
             }
@@ -162,9 +243,12 @@ const Auth = {
             console.error('Logout error:', error);
         }
 
+        isAuthenticated = false;
         currentUser = null;
         localStorage.removeItem(CONFIG.storage.tokenKey);
         localStorage.removeItem(CONFIG.storage.sessionKey);
+
+        AuthGuard.stopSessionMonitoring();
 
         if (mqttClient && mqttClient.connected) {
             mqttClient.end();
@@ -177,11 +261,19 @@ const Auth = {
     showLogin() {
         DOM.loginPage.style.display = 'flex';
         DOM.dashboard.classList.remove('active');
+        DOM.dashboard.style.display = 'none';
         DOM.usernameInput.focus();
     },
 
     showDashboard() {
+        if (!AuthGuard.isAuthenticated()) {
+            console.warn('Attempted to show dashboard without authentication');
+            this.showLogin();
+            return;
+        }
+
         DOM.loginPage.style.display = 'none';
+        DOM.dashboard.style.display = 'block';
         DOM.dashboard.classList.add('active');
         DOM.userAvatar.textContent = currentUser.username.charAt(0).toUpperCase();
         DOM.userName.textContent = currentUser.username;
@@ -219,6 +311,10 @@ const Clock = {
 
 const MQTT = {
     connect() {
+        if (!AuthGuard.requireAuth(null, 'kết nối MQTT')) {
+            return;
+        }
+
         if (mqttClient && mqttClient.connected) {
             Toast.show('info', 'Đã kết nối', 'Bạn đã kết nối đến MQTT broker');
             return;
@@ -307,11 +403,11 @@ const MQTT = {
             DOM.mqttStatus.className = 'status-badge connected';
             DOM.mqttStatus.textContent = 'CONNECTED';
             DOM.mqttStatusText.textContent = 'Đã kết nối';
-            DOM.deviceStatus.textContent = 'Online';
         } else {
             DOM.mqttStatus.className = 'status-badge disconnected';
             DOM.mqttStatus.textContent = 'DISCONNECTED';
             DOM.mqttStatusText.textContent = 'Chưa kết nối';
+            deviceOnlineStatus = false;
             DOM.deviceStatus.textContent = 'Offline';
         }
     },
@@ -330,9 +426,14 @@ const MQTT = {
     },
 
     updateDeviceStatus(status) {
-        const isOnline = status === 'ONLINE';
+        const isOnline = status !== 'OFFLINE';
         deviceOnlineStatus = isOnline;
         DOM.deviceStatus.textContent = isOnline ? 'Online' : 'Offline';
+        if (status === 'DOOR_OPEN') {
+            this.updateDoorStatus('UNLOCKED');
+        } else if (status === 'DOOR_CLOSED') {
+            this.updateDoorStatus('LOCKED');
+        }
     },
 
     sendCommand(cmd, extra = {}) {
@@ -357,6 +458,10 @@ const MQTT = {
 
 const Control = {
     unlock(durationMs = 2000) {
+        if (!AuthGuard.requireAuth(null, 'mở khóa cửa')) {
+            return;
+        }
+
         if (!deviceOnlineStatus) {
             Toast.show('warning', 'Thiết bị offline', 'Không thể gửi lệnh khi thiết bị ngoại tuyến');
             return;
@@ -380,6 +485,10 @@ const Control = {
     },
 
     lock() {
+        if (!AuthGuard.requireAuth(null, 'khóa cửa')) {
+            return;
+        }
+
         if (!deviceOnlineStatus) {
             Toast.show('warning', 'Thiết bị offline', 'Không thể gửi lệnh khi thiết bị ngoại tuyến');
             return;
@@ -403,6 +512,10 @@ const Control = {
     },
 
     ping() {
+        if (!AuthGuard.requireAuth(null, 'ping thiết bị')) {
+            return;
+        }
+
         if (!deviceOnlineStatus) {
             Toast.show('warning', 'Thiết bị offline', 'Không thể ping khi thiết bị ngoại tuyến');
             return;
@@ -419,6 +532,10 @@ const Control = {
     },
 
     buzz(durationMs = 300) {
+        if (!AuthGuard.requireAuth(null, 'kích hoạt còi')) {
+            return;
+        }
+
         if (!deviceOnlineStatus) {
             Toast.show('warning', 'Thiết bị offline', 'Không thể kích hoạt còi khi thiết bị ngoại tuyến');
             return;
@@ -663,6 +780,10 @@ const History = {
     currentFilter: 'all',
 
     async load() {
+        if (!AuthGuard.isAuthenticated()) {
+            return;
+        }
+
         try {
             const response = await API.get('/history?limit=100');
             if (response.success) {
@@ -671,7 +792,6 @@ const History = {
             }
         } catch (error) {
             console.error('Load history error:', error);
-            // Fallback to empty if API fails
             this.items = [];
             this.render();
         }
@@ -697,6 +817,10 @@ const History = {
     },
 
     async clear() {
+        if (!AuthGuard.requireAuth(null, 'xóa lịch sử')) {
+            return;
+        }
+
         try {
             const response = await API.delete('/history');
             if (response.success) {
@@ -797,6 +921,10 @@ const Statistics = {
     customEndDate: null,
 
     async open() {
+        if (!AuthGuard.requireAuth(null, 'xem thống kê')) {
+            return;
+        }
+
         const modal = document.getElementById('statsModal');
         modal.classList.add('active');
 
@@ -816,7 +944,6 @@ const Statistics = {
 
     async loadData() {
         try {
-            // Load with include_deleted=true to get ALL data for statistics
             const response = await API.get('/history?limit=10000&include_deleted=true');
             if (response.success) {
                 this.data = response.data;
@@ -1213,6 +1340,7 @@ function initEventListeners() {
     });
 }
 document.addEventListener('DOMContentLoaded', () => {
+    DOM.deviceStatus.textContent = 'Offline';
     initEventListeners();
     Auth.init();
 });
