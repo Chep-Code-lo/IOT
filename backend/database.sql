@@ -65,12 +65,6 @@ INSERT INTO rfid_cards (uid, owner_name, description, status) VALUES
 ('E5F6G7H8', 'User Card 1', 'Thẻ người dùng 1', 'active')
 ON DUPLICATE KEY UPDATE uid=uid;
 
--- =====================================================
--- MIGRATION: Fix for existing databases
--- =====================================================
--- Dành cho database đã tồn tại, cần chạy các lệnh sau:
-
--- Set giá trị mặc định cho dữ liệu cũ
 UPDATE activity_history 
 SET is_deleted = FALSE 
 WHERE is_deleted IS NULL;
