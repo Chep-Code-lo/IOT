@@ -1,6 +1,6 @@
 const CONFIG = {
     api: {
-        baseUrl: '/api'
+        baseUrl: 'http://localhost:3000/api'
     },
     mqtt: {
         url: 'wss://hackerlo.online/mqtt',
@@ -13,7 +13,7 @@ const CONFIG = {
         sessionKey: 'iot_session'
     }
 };
-/* đã đổi */
+/* đã đổi ahiii*/
 const API = {
     async request(endpoint, options = {}) {
         const token = localStorage.getItem(CONFIG.storage.tokenKey);
