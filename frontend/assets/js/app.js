@@ -73,6 +73,9 @@ let mqttClient = null;
 let currentUser = null;
 let doorStatus = 'LOCKED';
 let deviceOnlineStatus = false;
+let lastDeviceMessageTime = null;
+let deviceTimeoutId = null;
+const DEVICE_TIMEOUT_MS = 30000;
 let isAuthenticated = false;
 let sessionMonitorInterval = null;
 
@@ -352,7 +355,15 @@ const MQTT = {
         mqttClient.on('message', (topic, payload) => {
             const message = payload.toString();
             const topicName = topic.split('/').pop();
-            Log.add('receive', topicName.toUpperCase(), message);
+
+            if (['log', 'ack', 'status'].includes(topicName)) {
+                console.log('[DEBUG] Auto-detecting device online from topic:', topicName);
+                DeviceMonitor.markOnline();
+            }
+
+            if (topicName !== 'status') {
+                Log.add('receive', topicName.toUpperCase(), message);
+            }
 
             try {
                 const data = JSON.parse(message);
@@ -389,6 +400,7 @@ const MQTT = {
 
         mqttClient.on('close', () => {
             this.updateStatus(false);
+            DeviceMonitor.clearTimeout();
             Log.add('system', 'SYS', 'Ngắt kết nối');
         });
 
@@ -453,6 +465,42 @@ const MQTT = {
         Log.add('send', 'CMD', JSON.stringify(message));
 
         return message.id;
+    }
+};
+
+const DeviceMonitor = {
+    markOnline() {
+        console.log('[DeviceMonitor] markOnline called, current status:', deviceOnlineStatus);
+        if (!deviceOnlineStatus) {
+            deviceOnlineStatus = true;
+            DOM.deviceStatus.textContent = 'Online';
+            console.log('[DeviceMonitor] Device marked as ONLINE');
+            Toast.show('success', 'Thiết bị online', 'Thiết bị đã kết nối');
+        }
+        lastDeviceMessageTime = Date.now();
+        this.resetTimeout();
+    },
+
+    markOffline() {
+        if (deviceOnlineStatus) {
+            deviceOnlineStatus = false;
+            DOM.deviceStatus.textContent = 'Offline';
+            Toast.show('warning', 'Thiết bị offline', 'Mất kết nối với thiết bị');
+        }
+    },
+
+    resetTimeout() {
+        if (deviceTimeoutId) clearTimeout(deviceTimeoutId);
+        deviceTimeoutId = setTimeout(() => {
+            this.markOffline();
+        }, DEVICE_TIMEOUT_MS);
+    },
+
+    clearTimeout() {
+        if (deviceTimeoutId) {
+            clearTimeout(deviceTimeoutId);
+            deviceTimeoutId = null;
+        }
     }
 };
 
