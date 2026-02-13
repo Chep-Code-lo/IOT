@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cấu Trúc Database - IoT Smart Door System</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            font-size: 2em;
+        }
+
+        h3 {
+            color: #764ba2;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        h4 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .mermaid {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th,
+        td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        tbody tr:hover {
+            background: #f5f5f5;
+            transition: background 0.3s ease;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        pre code {
+            background: transparent;
+            color: #f8f8f2;
+            padding: 0;
+        }
+
+        .section {
+            margin: 40px 0;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 5px solid #667eea;
+        }
+
+        .summary {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+
+        .summary ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .summary li {
+            padding: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .summary li::before {
+            margin-right: 10px;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 40px 0;
+        }
+
+        ul,
+        ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .badge-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .badge-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #FF9800;
+            color: white;
+        }
+
+        .badge-info {
+            background: #2196F3;
+            color: white;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Cấu Trúc Database</h1>
+            <p>IoT Smart Door System</p>
+        </div>
+
+        <div class="content">
+            <h2>📋 Tổng Quan</h2>
+            <p>Database của hệ thống IoT Smart Door được thiết kế để quản lý người dùng, lịch sử hoạt động, thẻ RFID và
+                log hệ thống. Hệ thống sử dụng MySQL/MariaDB với engine InnoDB và charset UTF-8.</p>
+
+            <h2>🗺️ Sơ Đồ ERD (Entity Relationship Diagram)</h2>
+            <div class="mermaid">
+                erDiagram
+                users ||--o{ activity_history : "creates"
+                users ||--o{ rfid_cards : "owns"
+
+                users {
+                INT id PK "AUTO_INCREMENT"
+                VARCHAR(50) username UK "UNIQUE, NOT NULL"
+                VARCHAR(255) password_hash "NOT NULL"
+                VARCHAR(100) full_name
+                ENUM role "admin, user"
+                TIMESTAMP created_at
+                TIMESTAMP updated_at
+                TIMESTAMP last_login "NULL"
+                BOOLEAN is_active "DEFAULT TRUE"
+                }
+
+                activity_history {
+                INT id PK "AUTO_INCREMENT"
+                ENUM type "system, unlock, lock, rfid, ping, buzz, door, motion, bell"
+                VARCHAR(255) title "NOT NULL"
+                TEXT description
+                VARCHAR(500) icon
+                INT user_id FK "NULL"
+                TIMESTAMP created_at
+                JSON metadata
+                BOOLEAN is_deleted "DEFAULT FALSE"
+                }
+
+                rfid_cards {
+                INT id PK "AUTO_INCREMENT"
+                VARCHAR(50) uid UK "UNIQUE, NOT NULL"
+                VARCHAR(100) owner_name
+                TEXT description
+                ENUM status "active, inactive, blocked"
+                TIMESTAMP created_at
+                TIMESTAMP updated_at
+                TIMESTAMP last_used "NULL"
+                INT user_id FK "NULL"
+                }
+
+                system_logs {
+                INT id PK "AUTO_INCREMENT"
+                ENUM log_type "mqtt, system, error, info, warning"
+                VARCHAR(255) topic
+                TEXT message "NOT NULL"
+                JSON payload
+                TIMESTAMP created_at
+                }
+            </div>
+
+            <h2>📊 Chi Tiết Các Bảng</h2>
+
+            <div class="section">
+                <h3>1. <span class="badge badge-success">users</span> - Quản Lý Người Dùng</h3>
+                <p>Bảng này lưu trữ thông tin người dùng và quản trị viên của hệ thống.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cột</th>
+                            <th>Kiểu Dữ Liệu</th>
+                            <th>Mô Tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>INT (PK)</td>
+                            <td>ID tự động tăng</td>
+                        </tr>
+                        <tr>
+                            <td><code>username</code></td>
+                            <td>VARCHAR(50)</td>
+                            <td>Tên đăng nhập (duy nhất)</td>
+                        </tr>
+                        <tr>
+                            <td><code>password_hash</code></td>
+                            <td>VARCHAR(255)</td>
+                            <td>Mật khẩu đã mã hóa (bcrypt)</td>
+                        </tr>
+                        <tr>
+                            <td><code>full_name</code></td>
+                            <td>VARCHAR(100)</td>
+                            <td>Họ và tên đầy đủ</td>
+                        </tr>
+                        <tr>
+                            <td><code>role</code></td>
+                            <td>ENUM</td>
+                            <td>Vai trò: 'admin' hoặc 'user'</td>
+                        </tr>
+                        <tr>
+                            <td><code>created_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Thời gian tạo tài khoản</td>
+                        </tr>
+                        <tr>
+                            <td><code>updated_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Thời gian cập nhật cuối</td>
+                        </tr>
+                        <tr>
+                            <td><code>last_login</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Lần đăng nhập cuối cùng</td>
+                        </tr>
+                        <tr>
+                            <td><code>is_active</code></td>
+                            <td>BOOLEAN</td>
+                            <td>Trạng thái kích hoạt</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p><strong>Indexes:</strong></p>
+                <ul>
+                    <li><code>idx_username</code> - Tìm kiếm nhanh theo username</li>
+                    <li><code>idx_role</code> - Lọc theo vai trò</li>
+                </ul>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <h3>2. <span class="badge badge-info">activity_history</span> - Lịch Sử Hoạt Động</h3>
+                <p>Bảng này ghi lại tất cả các hoạt động của hệ thống (mở khóa, quét thẻ, cảm biến, v.v.).</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cột</th>
+                            <th>Kiểu Dữ Liệu</th>
+                            <th>Mô Tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>INT (PK)</td>
+                            <td>ID tự động tăng</td>
+                        </tr>
+                        <tr>
+                            <td><code>type</code></td>
+                            <td>ENUM</td>
+                            <td>Loại hoạt động (unlock, lock, rfid, door, motion, bell, v.v.)</td>
+                        </tr>
+                        <tr>
+                            <td><code>title</code></td>
+                            <td>VARCHAR(255)</td>
+                            <td>Tiêu đề hoạt động</td>
+                        </tr>
+                        <tr>
+                            <td><code>description</code></td>
+                            <td>TEXT</td>
+                            <td>Mô tả chi tiết</td>
+                        </tr>
+                        <tr>
+                            <td><code>icon</code></td>
+                            <td>VARCHAR(500)</td>
+                            <td>Icon Font Awesome</td>
+                        </tr>
+                        <tr>
+                            <td><code>user_id</code></td>
+                            <td>INT (FK)</td>
+                            <td>ID người dùng (nếu có)</td>
+                        </tr>
+                        <tr>
+                            <td><code>created_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Thời gian hoạt động</td>
+                        </tr>
+                        <tr>
+                            <td><code>metadata</code></td>
+                            <td>JSON</td>
+                            <td>Dữ liệu bổ sung (JSON)</td>
+                        </tr>
+                        <tr>
+                            <td><code>is_deleted</code></td>
+                            <td>BOOLEAN</td>
+                            <td>Đánh dấu đã xóa (soft delete)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p><strong>Indexes:</strong></p>
+                <ul>
+                    <li><code>idx_type</code> - Lọc theo loại hoạt động</li>
+                    <li><code>idx_created_at</code> - Sắp xếp theo thời gian</li>
+                    <li><code>idx_user_id</code> - Lọc theo người dùng</li>
+                    <li><code>idx_is_deleted</code> - Lọc bản ghi đã xóa</li>
+                </ul>
+
+                <p><strong>Foreign Keys:</strong></p>
+                <ul>
+                    <li><code>user_id</code> → <code>users(id)</code> ON DELETE SET NULL</li>
+                </ul>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <h3>3. <span class="badge badge-warning">rfid_cards</span> - Quản Lý Thẻ RFID</h3>
+                <p>Bảng này quản lý các thẻ RFID được phép truy cập hệ thống.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cột</th>
+                            <th>Kiểu Dữ Liệu</th>
+                            <th>Mô Tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>INT (PK)</td>
+                            <td>ID tự động tăng</td>
+                        </tr>
+                        <tr>
+                            <td><code>uid</code></td>
+                            <td>VARCHAR(50)</td>
+                            <td>UID thẻ RFID (duy nhất)</td>
+                        </tr>
+                        <tr>
+                            <td><code>owner_name</code></td>
+                            <td>VARCHAR(100)</td>
+                            <td>Tên chủ thẻ</td>
+                        </tr>
+                        <tr>
+                            <td><code>description</code></td>
+                            <td>TEXT</td>
+                            <td>Mô tả thẻ</td>
+                        </tr>
+                        <tr>
+                            <td><code>status</code></td>
+                            <td>ENUM</td>
+                            <td>Trạng thái: 'active', 'inactive', 'blocked'</td>
+                        </tr>
+                        <tr>
+                            <td><code>created_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Thời gian tạo</td>
+                        </tr>
+                        <tr>
+                            <td><code>updated_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Thời gian cập nhật</td>
+                        </tr>
+                        <tr>
+                            <td><code>last_used</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Lần sử dụng cuối</td>
+                        </tr>
+                        <tr>
+                            <td><code>user_id</code></td>
+                            <td>INT (FK)</td>
+                            <td>ID người dùng sở hữu</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p><strong>Indexes:</strong></p>
+                <ul>
+                    <li><code>idx_uid</code> - Tìm kiếm nhanh theo UID</li>
+                    <li><code>idx_status</code> - Lọc theo trạng thái</li>
+                </ul>
+
+                <p><strong>Foreign Keys:</strong></p>
+                <ul>
+                    <li><code>user_id</code> → <code>users(id)</code> ON DELETE SET NULL</li>
+                </ul>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <h3>4. <span class="badge badge-primary">system_logs</span> - Log Hệ Thống</h3>
+                <p>Bảng này ghi lại các log hệ thống, MQTT messages và lỗi.</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cột</th>
+                            <th>Kiểu Dữ Liệu</th>
+                            <th>Mô Tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>INT (PK)</td>
+                            <td>ID tự động tăng</td>
+                        </tr>
+                        <tr>
+                            <td><code>log_type</code></td>
+                            <td>ENUM</td>
+                            <td>Loại log: 'mqtt', 'system', 'error', 'info', 'warning'</td>
+                        </tr>
+                        <tr>
+                            <td><code>topic</code></td>
+                            <td>VARCHAR(255)</td>
+                            <td>MQTT topic (nếu có)</td>
+                        </tr>
+                        <tr>
+                            <td><code>message</code></td>
+                            <td>TEXT</td>
+                            <td>Nội dung log</td>
+                        </tr>
+                        <tr>
+                            <td><code>payload</code></td>
+                            <td>JSON</td>
+                            <td>Dữ liệu payload (JSON)</td>
+                        </tr>
+                        <tr>
+                            <td><code>created_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td>Thời gian ghi log</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p><strong>Indexes:</strong></p>
+                <ul>
+                    <li><code>idx_log_type</code> - Lọc theo loại log</li>
+                    <li><code>idx_created_at</code> - Sắp xếp theo thời gian</li>
+                    <li><code>idx_topic</code> - Tìm kiếm theo MQTT topic</li>
+                </ul>
+            </div>
+
+            <hr>
+
+            <h2>🔗 Mối Quan Hệ (Relationships)</h2>
+            <div class="mermaid">
+                graph LR
+                A[users] -->|1:N| B[activity_history]
+                A -->|1:N| C[rfid_cards]
+                D[system_logs] -.-|Independent| A
+
+                style A fill:#4CAF50,stroke:#2E7D32,color:#fff
+                style B fill:#2196F3,stroke:#1565C0,color:#fff
+                style C fill:#FF9800,stroke:#E65100,color:#fff
+                style D fill:#9C27B0,stroke:#6A1B9A,color:#fff
+            </div>
+
+            <h3>Giải Thích Mối Quan Hệ:</h3>
+            <ol>
+                <li>
+                    <strong>users → activity_history</strong> (1:N)
+                    <ul>
+                        <li>Một người dùng có thể tạo nhiều hoạt động</li>
+                        <li>Foreign key: <code>activity_history.user_id</code></li>
+                        <li>ON DELETE: SET NULL (giữ lịch sử khi xóa user)</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>users → rfid_cards</strong> (1:N)
+                    <ul>
+                        <li>Một người dùng có thể sở hữu nhiều thẻ RFID</li>
+                        <li>Foreign key: <code>rfid_cards.user_id</code></li>
+                        <li>ON DELETE: SET NULL (giữ thông tin thẻ khi xóa user)</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>system_logs</strong> (Independent)
+                    <ul>
+                        <li>Bảng độc lập, không có foreign key</li>
+                        <li>Ghi lại tất cả log hệ thống</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <hr>
+
+            <h2>💾 Dữ Liệu Mẫu</h2>
+
+            <h3>Default Admin Account</h3>
+            <pre><code>username: admin
+password: admin123 (hashed)
+role: admin</code></pre>
+
+            <h3>Default RFID Cards</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>UID</th>
+                        <th>Owner</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>A1B2C3D4</td>
+                        <td>Admin Card</td>
+                        <td>active</td>
+                    </tr>
+                    <tr>
+                        <td>E5F6G7H8</td>
+                        <td>User Card 1</td>
+                        <td>active</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2>⚙️ Đặc Điểm Kỹ Thuật</h2>
+            <ul>
+                <li><strong>Engine:</strong> InnoDB (hỗ trợ transactions và foreign keys)</li>
+                <li><strong>Charset:</strong> UTF-8 (utf8mb4_unicode_ci)</li>
+                <li><strong>Soft Delete:</strong> Sử dụng cột <code>is_deleted</code> trong
+                    <code>activity_history</code></li>
+                <li><strong>JSON Support:</strong> Metadata và payload được lưu dưới dạng JSON</li>
+                <li><strong>Indexing:</strong> Tối ưu hóa truy vấn với indexes trên các cột thường xuyên tìm kiếm</li>
+            </ul>
+
+            <hr>
+
+            <h2>🏗️ Sơ Đồ Kiến Trúc Dữ Liệu</h2>
+            <div class="mermaid">
+                graph TB
+                subgraph "Authentication Layer"
+                U[users]
+                end
+
+                subgraph "Activity Tracking Layer"
+                AH[activity_history]
+                SL[system_logs]
+                end
+
+                subgraph "Access Control Layer"
+                RC[rfid_cards]
+                end
+
+                U -.->|authenticates| AH
+                U -.->|manages| RC
+                RC -.->|triggers| AH
+                AH -.->|logs to| SL
+
+                style U fill:#4CAF50,stroke:#2E7D32,color:#fff
+                style AH fill:#2196F3,stroke:#1565C0,color:#fff
+                style RC fill:#FF9800,stroke:#E65100,color:#fff
+                style SL fill:#9C27B0,stroke:#6A1B9A,color:#fff
+            </div>
+
+            <hr>
+
+            <div class="summary">
+                <h2>📝 Tóm Tắt</h2>
+                <p>Database được thiết kế với 4 bảng chính:</p>
+                <ul>
+                    <li>✅ <strong>users</strong>: Quản lý người dùng và phân quyền</li>
+                    <li>✅ <strong>activity_history</strong>: Ghi lại mọi hoạt động của hệ thống</li>
+                    <li>✅ <strong>rfid_cards</strong>: Quản lý thẻ RFID và quyền truy cập</li>
+                    <li>✅ <strong>system_logs</strong>: Lưu trữ log hệ thống và MQTT messages</li>
+                </ul>
+
+                <p style="margin-top: 20px;"><strong>Thiết kế này đảm bảo:</strong></p>
+                <ul>
+                    <li>🔒 Bảo mật với mã hóa mật khẩu</li>
+                    <li>📊 Theo dõi hoạt động chi tiết</li>
+                    <li>🎫 Quản lý quyền truy cập linh hoạt</li>
+                    <li>📝 Ghi log đầy đủ cho debugging</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#764ba2',
+                lineColor: '#764ba2',
+                secondaryColor: '#4CAF50',
+                tertiaryColor: '#FF9800'
+            }
+        });
+    </script>
+</body>
+
+</html>

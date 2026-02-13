@@ -69,7 +69,6 @@ UPDATE activity_history
 SET is_deleted = FALSE 
 WHERE is_deleted IS NULL;
 
--- Kiểm tra kết quả
 SELECT COUNT(*) as total_records, 
        SUM(CASE WHEN is_deleted = FALSE THEN 1 ELSE 0 END) as visible_records,
        SUM(CASE WHEN is_deleted = TRUE THEN 1 ELSE 0 END) as deleted_records
