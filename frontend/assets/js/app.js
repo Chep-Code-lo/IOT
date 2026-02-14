@@ -1,6 +1,6 @@
 const CONFIG = {
     api: {
-        baseUrl: 'http://localhost:3000/api'
+        baseUrl: '/api'
     },
     mqtt: {
         url: 'wss://hackerlo.online/mqtt',
